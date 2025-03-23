@@ -11,8 +11,8 @@ class SheetManager:
     def __init__(self,SPREADSHEET_ID):
 
         creds = Credentials.from_service_account_file(
-            "single-arcadia-435019-h6-4e59ee50c184.json",
-            scopes=["/etc/secrets/single-arcadia-435019-h6-4e59ee50c184.json"])
+            "/etc/secrets/single-arcadia-435019-h6-4e59ee50c184.json",
+            scopes=["https://www.googleapis.com/auth/spreadsheets"])
         self.client = gspread.authorize(creds)
         self.sheet = self.client.open_by_key(SPREADSHEET_ID).worksheet("Tasks")
         
