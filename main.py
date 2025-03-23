@@ -2,7 +2,7 @@ import gspread
 import datetime
 from telebot import TeleBot
 from telebot.types import KeyboardButton, ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
-from google.oauth2.service_account import Credentials
+import os
 import pandas as pd
 import threading
 import schedule
@@ -14,6 +14,9 @@ SPREADSHEET_ID = os.environ.get("SPREADSHEET_ID")
 # Настройка Google Sheets
 db = SheetManager(SPREADSHEET_ID)
 bot = TeleBot(Token)
+
+print("🔐 TOKEN:", os.environ.get("Token"))
+print("📄 SPREADSHEET_ID:", os.environ.get("SPREADSHEET_ID"))
 
 # Временное хранилище задач
 user_data = {}
