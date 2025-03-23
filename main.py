@@ -7,10 +7,10 @@ import pandas as pd
 import threading
 import schedule
 from sheet_manager import SheetManager
-from config import SPREADSHEET_ID, Token
 import time
 from task import Task
-
+Token = os.environ.get("Token")
+SPREADSHEET_ID = os.environ.get("SPREADSHEET_ID")
 # Настройка Google Sheets
 db = SheetManager(SPREADSHEET_ID)
 bot = TeleBot(Token)

@@ -6,14 +6,14 @@ import pandas as pd
 
 class SheetManager:
     """
-    Class for managing Google Sheets.
+    Класс для работы с Google Sheets
     """
 
     def __init__(self,SPREADSHEET_ID):
 
         creds = Credentials.from_service_account_file(
             "single-arcadia-435019-h6-4e59ee50c184.json",
-            scopes=["https://www.googleapis.com/auth/spreadsheets"])
+            scopes=["/etc/secrets/single-arcadia-435019-h6-4e59ee50c184.json"])
         self.client = gspread.authorize(creds)
         self.sheet = self.client.open_by_key(SPREADSHEET_ID).worksheet("Tasks")
         
@@ -44,8 +44,10 @@ class SheetManager:
 
             if row_data.empty:
                return 'Задача не найдена'
+            
             if row_data['status'].values[0] == 'Закрыто':
                return 'Задача уже закрыта'
+            
             index_in_df = row_data.index[0]
             row_in_sheet = index_in_df + 2
             self.sheet.update_cell(row_in_sheet, 5, 'Закрыто')
