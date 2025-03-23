@@ -4,16 +4,15 @@ from telebot import TeleBot
 from telebot.types import KeyboardButton, ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from google.oauth2.service_account import Credentials
 import pandas as pd
+import threading
+import schedule
+from sheet_manager import SheetManager
 from config import SPREADSHEET_ID, Token
+import time
+from task import Task
 
 # Настройка Google Sheets
-creds = Credentials.from_service_account_file(
-    "single-arcadia-435019-h6-4e59ee50c184.json",
-    scopes=["https://www.googleapis.com/auth/spreadsheets"]
-)
-client = gspread.authorize(creds)
-sheet = client.open_by_key(SPREADSHEET_ID).worksheet("Tasks")
-
+db = SheetManager(SPREADSHEET_ID)
 bot = TeleBot(Token)
 
 # Временное хранилище задач
@@ -23,7 +22,7 @@ user_data = {}
 def start(message):
     markup = ReplyKeyboardMarkup(resize_keyboard=True,one_time_keyboard = True)
     markup.add(KeyboardButton('/add'), KeyboardButton('/list'), KeyboardButton('/close'))
-    bot.send_message(message.chat.id, "/add - добавить задачи, /list - посмотреть задачи, /close - закрыть бот", reply_markup=markup)
+    bot.send_message(message.chat.id, "/add - добавить задачи, /list - посмотреть задачи, /close - закрыть задачи", reply_markup=markup)
 
 
 @bot.message_handler(commands=['add'])
@@ -52,27 +51,41 @@ def add_task(message):
 #Для обработки кнопок
 @bot.callback_query_handler(func=lambda call: True)
 def callback_inline(call: CallbackQuery):
-    chat_id = call.message.chat.id
-    priority = call.data
-
-    task = user_data.get(chat_id, {}).get('task')
-    date = user_data.get(chat_id, {}).get('date')
-    sheet.append_row([task, priority, date, 'Активно'])
-    bot.send_message(chat_id, "Задача успешно добавлена!")
-    user_data.pop(chat_id, None)
-    bot.answer_callback_query(call.id)
+    task = Task(id_=call.message.chat.id, task=user_data.get(call.message.chat.id, {}).get('task'), priority=call.data, date=user_data.get(call.message.chat.id, {}).get('date'), status='Активно')
+    db.add_task(task.task,task.date,task.priority)    
+    bot.edit_message_reply_markup(chat_id=task.id_, message_id=call.message.message_id, reply_markup=None)
+    bot.answer_callback_query(call.id, text="Задача добавлена ✅")
 
 
 #Для вывода list
 @bot.message_handler(commands=['list'])
 def get_list(message):
-    rows = sheet.get_all_records()
-    df = pd.DataFrame(rows).query('(priority == "Важно и срочно") & (status == "Активно")').sort_values(by='date', ascending=False).head(5)
-    for row in  df.itertuples(index=False):
-        bot.send_message(message.chat.id, f"""Задача: {row.Tasks}\nДата добавления: {row.date}""")
+    for row in db.get_active_tasks().values.tolist():
+        bot.send_message(message.chat.id, f"""Задача под номером {row[0]}: {row[1]}\nДата добавления: {row[3]}\nПриоритет: {row[2]}""")
 
+#Закрываем тасочки
 @bot.message_handler(commands=['close'])
 def close(message):
-    bot.
+    bot.send_message(message.chat.id, 'Введите номер задачи, которую хотите закрыть: ')
+    bot.register_next_step_handler(message,close_task)
+
+def close_task(message):
+    bot.send_message(message.chat.id, db.close_task(message.text))
+
+#На репит бота ставим
+def send_daily_reminder():
+    bot.send_message(1493002170, f'Сегодня нужно сделать некоторые задачи!!!!')
+
+
+reminder_times = ["11:00", "15:00", "19:35"]
+for t in reminder_times:
+    schedule.every().day.at(t).do(send_daily_reminder)
+
+def schedule_tasks():
+    while True:
+        schedule.run_pending()
+        time.sleep(1)
+
 if __name__ == '__main__':
+    threading.Thread(target=schedule_tasks,daemon=True).start()
     bot.polling(none_stop=True)
